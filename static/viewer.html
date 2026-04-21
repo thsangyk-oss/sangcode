@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>MyCode — Terminal</title>
+<title>SangCode — Terminal</title>
 <link rel="stylesheet" href="__BASE__/static/css/base.css">
 <link rel="stylesheet" href="__BASE__/static/css/viewer.css">
 </head>
@@ -164,7 +164,7 @@ let keysVisible   = false;
 let promptVisible = false;
 
 // Font scale stored in localStorage
-const FONT_SCALE_KEY = 'mycode_font_scale';
+const FONT_SCALE_KEY = 'sangcode_font_scale';
 
 // Mobile target cols: 70 gives ~10px visual font size on 393px screen (readable)
 // User can adjust with A+/A- buttons; setting is saved in localStorage
@@ -218,7 +218,7 @@ async function init() {
       badge.style.color        = meta.color;
       badge.style.borderColor  = meta.color + '44';
       document.getElementById('topAccent').style.background = meta.color;
-      document.title = `${meta.label} — MyCode`;
+      document.title = `${meta.label} — SangCode`;
 
       autoApprove = !!session.auto_approve;
       syncAutoDot();

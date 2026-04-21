@@ -1,4 +1,4 @@
-# MyCode — Implementation Plan (ttyd-based, "xịn hơn vibecode")
+# SangCode — Implementation Plan (ttyd-based, "xịn hơn vibecode")
 
 > **Mục tiêu:** Build một web terminal dashboard xịn hơn vibecode, dùng **ttyd** để render terminal thật (xterm.js + WebSocket, không polling). Bám sát plan này, LLM cỡ trung có thể làm được end-to-end.
 >
@@ -11,8 +11,8 @@
 ```
 Browser
   │
-  │  HTTPS  →  Caddy  →  /mycode/*     (UI + API, port 8770)
-  │                   →  /mycode/tty/* (ttyd WS, port 7681+)
+  │  HTTPS  →  Caddy  →  /sangcode/*     (UI + API, port 8770)
+  │                   →  /sangcode/tty/* (ttyd WS, port 7681+)
   ▼
 ┌───────────────────────────────────────┐
 │  Python backend (app.py, port 8770)   │
@@ -33,9 +33,9 @@ Browser
                 claude / codex / bash
 ```
 
-**Vibecode khác MyCode ở chỗ nào:**
+**Vibecode khác SangCode ở chỗ nào:**
 
-| Vibecode (hiện tại) | MyCode (mục tiêu) |
+| Vibecode (hiện tại) | SangCode (mục tiêu) |
 |---|---|
 | `capture-pane` mỗi 2s → render `<pre>` | **Terminal thật** (xterm.js qua ttyd) realtime |
 | Nút Enter/Up/Down mô phỏng | Gõ trực tiếp từ bàn phím |
@@ -89,7 +89,7 @@ pip install flask==3.0.0
 ## 2. Cấu trúc thư mục
 
 ```
-/mycode/
+/sangcode/
 ├── app.py                    # Main server (port 8770)
 ├── ttyd_manager.py           # Spawn/kill ttyd processes
 ├── tmux_manager.py           # tmux session CRUD + monitor
@@ -116,7 +116,7 @@ pip install flask==3.0.0
 │   └── tokens.json           # Auth tokens
 │
 ├── logs/
-│   └── mycode.log
+│   └── sangcode.log
 │
 ├── scripts/
 │   ├── redeploy.sh
@@ -129,7 +129,7 @@ pip install flask==3.0.0
 
 - [ ] Tạo đủ thư mục bằng:
   ```bash
-  cd /mycode
+  cd /sangcode
   mkdir -p static/{css,js} data logs scripts
   touch static/dashboard.html static/viewer.html
   touch data/registry.json data/tokens.json
@@ -147,16 +147,16 @@ pip install flask==3.0.0
 - [ ] Tạo [config.py](config.py) với các hằng số:
   ```python
   import os
-  HOST = os.environ.get('MYCODE_HOST', '0.0.0.0')
-  PORT = int(os.environ.get('MYCODE_PORT', '8770'))
-  BASE_PATH = os.environ.get('MYCODE_BASE_PATH', '').rstrip('/')  # e.g. '/mycode'
-  WORKSPACE = os.environ.get('MYCODE_WORKSPACE', '/root/.openclaw/workspace')
-  DATA_DIR = os.environ.get('MYCODE_DATA', '/mycode/data')
+  HOST = os.environ.get('SANGCODE_HOST', '0.0.0.0')
+  PORT = int(os.environ.get('SANGCODE_PORT', '8770'))
+  BASE_PATH = os.environ.get('SANGCODE_BASE_PATH', '').rstrip('/')  # e.g. '/sangcode'
+  WORKSPACE = os.environ.get('SANGCODE_WORKSPACE', '/root/.openclaw/workspace')
+  DATA_DIR = os.environ.get('SANGCODE_DATA', '/sangcode/data')
   TTYD_BIN = os.environ.get('TTYD_BIN', '/usr/local/bin/ttyd')
   TTYD_PORT_START = int(os.environ.get('TTYD_PORT_START', '7681'))
   TTYD_PORT_END = int(os.environ.get('TTYD_PORT_END', '7781'))
-  MONITOR_INTERVAL_SEC = int(os.environ.get('MYCODE_MONITOR_INTERVAL', '5'))
-  SESSION_PREFIX = 'mycode'  # tmux session name prefix
+  MONITOR_INTERVAL_SEC = int(os.environ.get('SANGCODE_MONITOR_INTERVAL', '5'))
+  SESSION_PREFIX = 'sangcode'  # tmux session name prefix
   ```
 
 - [ ] **Done when:** `python3 -c "import config; print(config.PORT)"` in ra `8770`.
@@ -216,7 +216,7 @@ pip install flask==3.0.0
   
   if __name__ == '__main__':
       srv = ThreadingHTTPServer((config.HOST, config.PORT), Handler)
-      print(f'MyCode running on http://{config.HOST}:{config.PORT}{config.BASE_PATH}')
+      print(f'SangCode running on http://{config.HOST}:{config.PORT}{config.BASE_PATH}')
       srv.serve_forever()
   ```
 
@@ -226,7 +226,7 @@ pip install flask==3.0.0
 - [ ] Tạo [static/dashboard.html](static/dashboard.html) tối thiểu:
   ```html
   <!doctype html>
-  <html><head><meta charset="utf-8"><title>MyCode</title>
+  <html><head><meta charset="utf-8"><title>SangCode</title>
   <link rel="stylesheet" href="__BASE__/static/css/base.css">
   <link rel="stylesheet" href="__BASE__/static/css/dashboard.css">
   </head>
@@ -239,23 +239,23 @@ pip install flask==3.0.0
 - [ ] **Done when:** Mở http://localhost:8770/ thấy trang trắng, DevTools không có lỗi 404.
 
 ### Task 1.4 — Caddy route
-- [ ] Thêm route `/mycode/*` vào Caddy config (container `cliproxy-caddy`):
+- [ ] Thêm route `/sangcode/*` vào Caddy config (container `cliproxy-caddy`):
   ```caddy
-  handle_path /mycode/* {
+  handle_path /sangcode/* {
       reverse_proxy localhost:8770
   }
-  handle_path /mycode/tty/* {
+  handle_path /sangcode/tty/* {
       reverse_proxy localhost:7681  # sẽ fix dynamic ở phase 3
   }
   ```
 - [ ] Reload Caddy: `docker exec cliproxy-caddy caddy reload --config /etc/caddy/Caddyfile`
-- [ ] **Done when:** `curl https://<domain>/mycode/health` → `{"ok": true}`.
+- [ ] **Done when:** `curl https://<domain>/sangcode/health` → `{"ok": true}`.
 
 ---
 
 ## 4. Phase 2 — tmux session manager (2-3h)
 
-**Mục tiêu:** CRUD cho tmux sessions (`mycode-claude-*`, `mycode-codex-*`, `mycode-bash-*`). Không cần ttyd ở bước này.
+**Mục tiêu:** CRUD cho tmux sessions (`sangcode-claude-*`, `sangcode-codex-*`, `sangcode-bash-*`). Không cần ttyd ở bước này.
 
 ### Task 2.1 — tmux_manager.py
 - [ ] Tạo [tmux_manager.py](tmux_manager.py):
@@ -354,7 +354,7 @@ pip install flask==3.0.0
 - [ ] Schema mỗi session:
   ```json
   {
-    "name": "mycode-claude-1714000000-abc123",
+    "name": "sangcode-claude-1714000000-abc123",
     "kind": "claude",
     "title": "Claude - task X",
     "cmd": "claude",
@@ -435,7 +435,7 @@ pip install flask==3.0.0
               '-t', 'disableLeaveAlert=true',
               '-t', 'fontSize=14',
               '-t', 'theme={"background":"#0a0f1d","foreground":"#e4e9f5"}',
-              '-c', f'mycode:{token}',
+              '-c', f'sangcode:{token}',
               'tmux', 'attach', '-t', session_name]
       proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                               preexec_fn=os.setsid)
@@ -458,7 +458,7 @@ pip install flask==3.0.0
 
 - [ ] **Done when:**
   - `ttyd_manager.start('test-session', 'abc')` trả port 7681+
-  - `curl -u mycode:abc http://127.0.0.1:7681/` trả HTML của ttyd
+  - `curl -u sangcode:abc http://127.0.0.1:7681/` trả HTML của ttyd
   - `ttyd_manager.stop('test-session')` không còn process `ttyd`
 
 ### Task 3.2 — Wire vào API create/delete
@@ -555,7 +555,7 @@ Có 2 lựa chọn, **chọn B** để đơn giản:
   const name = new URLSearchParams(location.search).get('s');
   const token = new URLSearchParams(location.search).get('t');
   document.getElementById('term').src =
-    `${BASE_PATH}/tty/${name}/?arg=mycode:${token}`;  // or URL-embedded basic auth
+    `${BASE_PATH}/tty/${name}/?arg=sangcode:${token}`;  // or URL-embedded basic auth
   ```
 
 - [ ] **Done when:** Từ dashboard click vào session → viewer.html hiển thị terminal tương tác được (gõ `ls` thấy output).
@@ -675,7 +675,7 @@ Port từ vibecode với cải tiến: detection tốt hơn, rate-limit per sess
 ## 9. Phase 7 — Auth & hardening (1h)
 
 ### Task 7.1 — Token auth
-- [ ] `POST /api/login` body `{"password":"..."}` check env `MYCODE_PASSWORD`, trả session cookie (HMAC-signed).
+- [ ] `POST /api/login` body `{"password":"..."}` check env `SANGCODE_PASSWORD`, trả session cookie (HMAC-signed).
 - [ ] Middleware decorator `@require_auth` cho tất cả `/api/*` và `/tty/*`.
 - [ ] **Done when:** Không login không xem được session nào.
 
@@ -684,7 +684,7 @@ Port từ vibecode với cải tiến: detection tốt hơn, rate-limit per sess
 - [ ] Rate limit: max 5 login fail/phút per IP.
 
 ### Task 7.3 — Logging
-- [ ] Ghi log có timestamp vào `logs/mycode.log`: session create/kill, auto-approve actions, auth events.
+- [ ] Ghi log có timestamp vào `logs/sangcode.log`: session create/kill, auto-approve actions, auth events.
 
 ---
 
@@ -693,19 +693,19 @@ Port từ vibecode với cải tiến: detection tốt hơn, rate-limit per sess
 ### Task 8.1 — scripts/redeploy.sh
 - [ ] ```bash
   #!/bin/bash
-  cd /mycode
+  cd /sangcode
   kill $(lsof -ti :8770) 2>/dev/null
   # Kill ttyd pool
   for p in $(seq 7681 7781); do kill $(lsof -ti :$p) 2>/dev/null; done
   sleep 1
-  MYCODE_BASE_PATH=/mycode python3 app.py >> logs/mycode.log 2>&1 &
+  SANGCODE_BASE_PATH=/sangcode python3 app.py >> logs/sangcode.log 2>&1 &
   sleep 1
   curl -s http://localhost:8770/health && echo " OK"
   ```
 - [ ] `chmod +x scripts/redeploy.sh`
 
 ### Task 8.2 — README.md
-- [ ] Include: install ttyd, caddy config snippet, env vars, common commands, troubleshooting (`Unexpected token '<'` = thiếu `MYCODE_BASE_PATH`).
+- [ ] Include: install ttyd, caddy config snippet, env vars, common commands, troubleshooting (`Unexpected token '<'` = thiếu `SANGCODE_BASE_PATH`).
 
 ---
 
@@ -726,7 +726,7 @@ Port từ vibecode với cải tiến: detection tốt hơn, rate-limit per sess
 - [ ] Mobile (< 768px): keyboard toolbar hiện, gõ vẫn được
 - [ ] Auto-approve: enable → claude hỏi → tự động approve trong 5-10s
 - [ ] Kill session từ UI → tmux ls không còn, ttyd process killed
-- [ ] Reload Caddy, vẫn work qua `https://.../mycode/`
+- [ ] Reload Caddy, vẫn work qua `https://.../sangcode/`
 - [ ] Redeploy 3 lần liên tiếp không lỗi port busy
 
 ---
@@ -735,7 +735,7 @@ Port từ vibecode với cải tiến: detection tốt hơn, rate-limit per sess
 
 1. **Thiếu BASE_PATH env** → JS gọi sai endpoint → lỗi `Unexpected token '<'`. **Fix:** luôn inject `window.BASE_PATH` + validate lúc startup.
 2. **tmux default width 220 cols** → TUI vỡ. **Fix:** `-x 120 -y 40` cố định, configurable qua env.
-3. **`white-space: pre` trên mobile** → scroll ngang xấu. **Fix:** media query `pre-wrap` ở < 768px. (MyCode dùng xterm.js thật nên không gặp.)
+3. **`white-space: pre` trên mobile** → scroll ngang xấu. **Fix:** media query `pre-wrap` ở < 768px. (SangCode dùng xterm.js thật nên không gặp.)
 4. **Polling 2s** → lag + tốn CPU. **Fix:** ttyd dùng WebSocket, realtime không polling.
 5. **Send-keys text+Enter quá nhanh** → Codex miss Enter. **Fix:** sleep 150ms giữa text và Enter.
 6. **Stale tmux session sau crash** → không list được. **Fix:** lúc startup, reconcile registry vs `tmux list-sessions`, drop entries không còn.

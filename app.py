@@ -30,16 +30,16 @@ async def auth_middleware(request, handler):
     if path.startswith('/tty/'):
         return await handler(request)
 
-    pw = os.environ.get('MYCODE_PASSWORD')
+    pw = os.environ.get('SANGCODE_PASSWORD')
     if pw:
-        cookie = request.cookies.get('mycode_auth')
+        cookie = request.cookies.get('sangcode_auth')
         if cookie != pw:
             if path.startswith('/api/'):
                 return web.Response(status=401, text='Unauthorized')
             # Show password prompt
             return web.Response(
                 status=401,
-                text='<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MyCode Login</title>'
+                text='<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SangCode Login</title>'
                      '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,sans-serif;background:#0a0e1a;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh}'
                      '.box{background:rgba(17,24,39,0.9);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px;width:340px;text-align:center;backdrop-filter:blur(12px)}'
                      'h2{margin-bottom:8px;font-size:20px}p{color:#94a3b8;font-size:13px;margin-bottom:24px}'
@@ -47,8 +47,8 @@ async def auth_middleware(request, handler):
                      'input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.25)}'
                      'button{width:100%;padding:12px;background:#6366f1;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}'
                      'button:hover{background:#818cf8}</style></head>'
-                     '<body><div class="box"><h2>🔐 MyCode</h2><p>Enter password to continue</p>'
-                     '<form onsubmit="event.preventDefault();document.cookie=\'mycode_auth=\'+document.getElementById(\'p\').value+\';path=/;max-age=31536000\';location.reload()">'
+                     '<body><div class="box"><h2>🔐 SangCode</h2><p>Enter password to continue</p>'
+                     '<form onsubmit="event.preventDefault();document.cookie=\'sangcode_auth=\'+document.getElementById(\'p\').value+\';path=/;max-age=31536000\';location.reload()">'
                      '<input type="password" id="p" placeholder="Password" autofocus>'
                      '<button type="submit">Login</button></form></div></body></html>',
                 content_type='text/html')
@@ -319,5 +319,5 @@ async def init_app():
 if __name__ == '__main__':
     reconcile_sessions()
     monitor.start()
-    print(f'MyCode running on http://{config.HOST}:{config.PORT}{config.BASE_PATH}')
+    print(f'SangCode running on http://{config.HOST}:{config.PORT}{config.BASE_PATH}')
     web.run_app(init_app(), host=config.HOST, port=config.PORT, print=None)

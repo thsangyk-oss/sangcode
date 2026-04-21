@@ -1,6 +1,6 @@
-# MyCode Web Terminal Dashboard
+# SangCode Web Terminal Dashboard
 
-MyCode is a modern, web-based terminal dashboard designed to seamlessly manage and interact with multiple coding environments directly from your browser. Whether you are running bash scripts, or specialized AI coding assistants like Claude, Codex, or OpenCode, MyCode provides an elegant, centralized interface for all your sessions.
+SangCode is a modern, web-based terminal dashboard designed to seamlessly manage and interact with multiple coding environments directly from your browser. Whether you are running bash scripts, or specialized AI coding assistants like Claude, Codex, or OpenCode, SangCode provides an elegant, centralized interface for all your sessions.
 
 ## Features
 
@@ -11,7 +11,7 @@ MyCode is a modern, web-based terminal dashboard designed to seamlessly manage a
   - `codex`
   - `opencode`
 - 📱 **Mobile Optimized**: A responsive dashboard UI designed to work flawlessly across desktop and touch-enabled mobile devices.
-- 🔐 **Secure Access**: Built-in authentication mechanism using environment variables (`MYCODE_PASSWORD`).
+- 🔐 **Secure Access**: Built-in authentication mechanism using environment variables (`SANGCODE_PASSWORD`).
 - 🤖 **Auto-Approve Integration**: Built-in monitor to classify AI prompts and optionally auto-approve routine confirmations.
 - 🔍 **Path Suggestions**: Intelligent path autocompletion when setting up new sessions.
 
@@ -23,7 +23,7 @@ MyCode is a modern, web-based terminal dashboard designed to seamlessly manage a
 
 ## Prerequisites
 
-To run MyCode, ensure you have the following installed on your system:
+To run SangCode, ensure you have the following installed on your system:
 - Python 3.8+
 - `tmux`
 - `ttyd`
@@ -33,8 +33,8 @@ To run MyCode, ensure you have the following installed on your system:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/mycode.git
-   cd mycode
+   git clone https://github.com/yourusername/sangcode.git
+   cd sangcode
    ```
 
 2. Install Python dependencies:
@@ -44,7 +44,7 @@ To run MyCode, ensure you have the following installed on your system:
 
 3. Set up the required environment variables:
    ```bash
-   export MYCODE_PASSWORD="your_secure_password"
+   export SANGCODE_PASSWORD="your_secure_password"
    ```
 
 4. Run the server:
@@ -61,8 +61,8 @@ To run MyCode, ensure you have the following installed on your system:
 
 ## Security
 
-MyCode exposes a powerful terminal interface to your system. It is strongly recommended to:
-- Always use a strong `MYCODE_PASSWORD`.
+SangCode exposes a powerful terminal interface to your system. It is strongly recommended to:
+- Always use a strong `SANGCODE_PASSWORD`.
 - Run the server behind a secure reverse proxy like Caddy or Nginx with HTTPS enabled.
 - Avoid exposing the server to the public internet without proper firewall and authentication safeguards.
 

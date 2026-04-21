@@ -1,4 +1,4 @@
-/* ── MyCode Dashboard JS ── */
+/* ── SangCode Dashboard JS ── */
 const B = window.BASE_PATH || '';
 const TOOLS = [
   { kind: 'claude',   label: 'Claude Code', icon: `<img src="${B}/static/img/icon_claude.png" width="48" height="48" style="border-radius:10px;object-fit:cover;">`,   cardClass: 'tool-card-claude' },

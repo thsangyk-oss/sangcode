@@ -4,7 +4,7 @@ const token = params.get('t');
 
 if (name && token) {
   // Pass token as arg for basic auth with ttyd
-  document.getElementById('term').src = `${window.BASE_PATH}/tty/${name}/?arg=mycode:${token}`;
+  document.getElementById('term').src = `${window.BASE_PATH}/tty/${name}/?arg=sangcode:${token}`;
   document.getElementById('session-title').textContent = name;
 }
 
