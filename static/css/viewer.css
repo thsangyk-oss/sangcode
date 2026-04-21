@@ -2,8 +2,23 @@
 /* Must override CSS display:flex/flex when [hidden] attribute is set */
 [hidden] { display: none !important; }
 
-html { height: 100%; overflow: hidden; }
-body { height: 100%; overflow: hidden; background: #0a0e1a; }
+html {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body {
+  height: 100%;
+  overflow: hidden;
+  background: #0a0e1a;
+  overscroll-behavior: none;
+}
+body.android-pwa {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: var(--viewer-height, 100vh);
+}
 
 /* Prevent text selection on all buttons globally in viewer */
 button, a.back-btn {
@@ -16,9 +31,17 @@ button, a.back-btn {
 .viewer {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: var(--viewer-height, 100vh);
+  max-height: var(--viewer-height, 100vh);
+  min-height: 0;
+  overflow: hidden;
 }
-@supports (height: 100dvh) { .viewer { height: 100dvh; } }
+@supports (height: 100dvh) {
+  .viewer {
+    height: var(--viewer-height, 100dvh);
+    max-height: var(--viewer-height, 100dvh);
+  }
+}
 
 /* ══════════════════════════════
    TOP BAR
@@ -28,6 +51,8 @@ button, a.back-btn {
   z-index: 10;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
+  /* Push below Android/iOS status bar in PWA standalone mode */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* Colored accent stripe */
@@ -134,22 +159,49 @@ button, a.back-btn {
 .status-dot.attention { background: var(--orange); box-shadow: 0 0 6px var(--orange); animation: pulse 1.5s infinite; }
 .status-dot.error     { background: var(--red);    box-shadow: 0 0 6px var(--red); }
 
-.kill-btn {
+.kill-btn,
+.wake-lock-btn {
   display: flex;
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  background: var(--red-bg);
-  border: 1px solid rgba(239,68,68,0.25);
   border-radius: 8px;
-  color: var(--red);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition);
 }
+.kill-btn {
+  background: var(--red-bg);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: var(--red);
+}
 .kill-btn:hover  { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); }
-.kill-btn:active { transform: scale(0.95); }
+.kill-btn:active,
+.wake-lock-btn:active { transform: scale(0.95); }
+
+.wake-lock-btn {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(14, 165, 233, 0.28);
+  color: #67e8f9;
+}
+.wake-lock-btn:hover {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(103, 232, 249, 0.48);
+  color: #cffafe;
+}
+.wake-lock-btn.active {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: var(--green);
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.15);
+}
+.wake-lock-btn.unsupported,
+.wake-lock-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 
 .split-btn {
   display: flex;
@@ -371,10 +423,22 @@ button, a.back-btn {
   z-index: 15;
 }
 
-/* Show only on touch-primary devices (phones/tablets, NOT touchscreen laptops) */
-@media (hover: none) and (pointer: coarse) {
-  .scroll-sidebar { display: flex; }
-  .font-controls { right: 36px; } /* Push away from the scrollbar to prevent overlap */
+/* ── Scroll-wheel button — inline square icon in action-row ── */
+.scroll-wheel-btn {
+  touch-action: none;
+  background: rgba(14, 165, 233, 0.16);
+  border-color: rgba(14, 165, 233, 0.45);
+  color: #67e8f9;
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.12), 0 0 18px rgba(14, 165, 233, 0.16);
+}
+.scroll-wheel-btn:hover {
+  background: rgba(14, 165, 233, 0.24);
+  border-color: rgba(103, 232, 249, 0.75);
+  color: #cffafe;
+}
+.scroll-wheel-btn:active {
+  background: rgba(14, 165, 233, 0.32);
+  transform: scale(0.91);
 }
 .scroll-rail-up,
 .scroll-rail-down {
@@ -422,6 +486,8 @@ button, a.back-btn {
 ══════════════════════════════ */
 .controls {
   flex-shrink: 0;
+  position: relative;
+  z-index: 30;
   background: var(--bg-secondary);
   border-top: 1px solid var(--border);
   padding: 6px 10px;
@@ -429,6 +495,9 @@ button, a.back-btn {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+body.android-pwa .controls {
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 
 /* Keys row — hidden by default, scrollable */
@@ -588,8 +657,10 @@ button, a.back-btn {
   .session-name { font-size: 10px; max-width: 130px; }
   .status-pill { padding: 4px 8px; }
   .status-label { font-size: 10px; }
-  .kill-btn { padding: 4px 9px; font-size: 10px; }
+  .kill-btn,
+  .wake-lock-btn { padding: 4px 9px; font-size: 10px; }
   .kill-label { display: none; } /* show only × icon */
+  .wake-lock-label { display: none; }
   .split-label { display: none; } /* icon only on mobile */
   .split-btn { padding: 5px 8px; }
 

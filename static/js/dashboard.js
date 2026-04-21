@@ -12,6 +12,17 @@ let sessions       = [];
 let suggestTimer   = null;
 let refreshTimer   = null;
 let refreshInterval = 30000; // default 30s
+let deferredInstallPrompt = null;
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[ch]);
+}
 
 // ── Toast ──
 function toast(msg, dur) {
@@ -89,7 +100,7 @@ function reconcileSessionList(newSessions) {
 }
 
 function hashCard(s) {
-  return `${s.is_running}|${s.auto_approve}|${s.kind}`;
+  return `${s.is_running}|${s.auto_approve}|${s.kind}|${s.title || ''}|${s.workdir || ''}|${s.ttyd_port || ''}`;
 }
 
 function buildCardHTML(s) {
@@ -98,19 +109,30 @@ function buildCardHTML(s) {
   const badgeText  = isRunning ? 'Running' : 'Stopped';
   const kindLabel  = KIND_LABEL[s.kind] || s.kind;
   const autoLabel  = s.auto_approve ? '<span style="font-size:11px;color:var(--green)">🟢 Auto</span>' : '';
+  const title      = (s.title || '').trim();
+  const displayTitle = title || kindLabel;
+  const workdir    = s.workdir || '—';
 
-  return `<div class="session-card" data-name="${s.name}" data-hash="${hashCard(s)}">
+  return `<div class="session-card" data-name="${escapeHtml(s.name)}" data-hash="${escapeHtml(hashCard(s))}">
     <div class="session-top">
-      <div class="session-name">
-        <span>${kindLabel}</span>
-        <span class="badge ${badgeClass}">${badgeText}</span>
-        ${autoLabel}
+      <div class="session-heading">
+        <div class="session-name">
+          <span class="session-title-text">${escapeHtml(displayTitle)}</span>
+          <span class="badge ${badgeClass}">${badgeText}</span>
+          ${autoLabel}
+        </div>
+        <div class="session-subtitle">${escapeHtml(kindLabel)} · ${escapeHtml(s.name || '—')}</div>
+      </div>
+      <div class="session-top-actions">
+        <button class="icon-action" type="button" data-action="rename" data-name="${escapeHtml(s.name)}" title="Đổi tên session">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
       </div>
     </div>
     <div class="session-meta">
-      <span><span class="label">tmux</span> <span class="value">${s.name || '—'}</span></span>
-      <span><span class="label">Port</span> <span class="value">${s.ttyd_port || '—'}</span></span>
-      <span><span class="label">Created</span> <span class="value">${timeAgo(s.created_at)}</span></span>
+      <span><span class="label">Dir</span> <span class="value path" title="${escapeHtml(workdir)}">${escapeHtml(workdir)}</span></span>
+      <span><span class="label">Port</span> <span class="value">${escapeHtml(s.ttyd_port || '—')}</span></span>
+      <span><span class="label">Created</span> <span class="value">${escapeHtml(timeAgo(s.created_at))}</span></span>
     </div>
     <div class="session-actions">
       <a href="${B}/viewer?s=${encodeURIComponent(s.name)}&t=${encodeURIComponent(s.token)}" class="btn btn-primary">▶ Open</a>
@@ -160,6 +182,13 @@ document.getElementById('refreshSelect').addEventListener('change', function () 
 
 document.getElementById('refreshNowBtn').addEventListener('click', () => loadSessions(true));
 
+document.addEventListener('click', e => {
+  const renameBtn = e.target.closest('[data-action="rename"]');
+  if (renameBtn) {
+    renameSession(renameBtn.dataset.name);
+  }
+});
+
 // ── Launch ──
 async function launchTool(kind) {
   const workdir = document.getElementById('workdirInput').value.trim() || '/root';
@@ -205,6 +234,86 @@ async function toggleAutoApprove(name, enabled) {
   } catch (e) { toast('Error: ' + e.message); }
 }
 
+// ── Rename display title ──
+async function renameSession(name) {
+  const session = sessions.find(s => s.name === name);
+  if (!session) return;
+  const currentTitle = (session.title || '').trim();
+  const fallback = KIND_LABEL[session.kind] || session.kind || session.name;
+  const next = prompt('Tên hiển thị của session:', currentTitle || fallback);
+  if (next === null) return;
+  const title = next.trim();
+  if (title.length > 80) {
+    toast('Tên tối đa 80 ký tự');
+    return;
+  }
+  try {
+    const r = await fetch(`${B}/api/sessions/${encodeURIComponent(name)}/title`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title })
+    });
+    const data = await r.json();
+    if (!r.ok || data.error) throw new Error(data.error || 'Rename failed');
+    toast('Đã đổi tên session');
+    await loadSessions(false);
+  } catch (e) {
+    toast('Rename failed: ' + e.message);
+  }
+}
+
+// ── Android app install ──
+function isStandaloneApp() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+}
+
+function isAndroid() {
+  return /Android/i.test(navigator.userAgent || '');
+}
+
+function updateInstallButton() {
+  const btn = document.getElementById('installAppBtn');
+  if (!btn) return;
+  btn.hidden = isStandaloneApp() || !isAndroid();
+  btn.classList.toggle('ready', !!deferredInstallPrompt);
+}
+
+function initInstallAppButton() {
+  const btn = document.getElementById('installAppBtn');
+  if (!btn) return;
+  updateInstallButton();
+  btn.addEventListener('click', async () => {
+    if (isStandaloneApp()) return;
+    if (!deferredInstallPrompt) {
+      toast('Chrome menu → Install app');
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    try { await deferredInstallPrompt.userChoice; } catch (_) {}
+    deferredInstallPrompt = null;
+    updateInstallButton();
+  });
+}
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  updateInstallButton();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  updateInstallButton();
+  toast('App installed');
+});
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${B}/sw.js`, { scope: `${B || ''}/` }).catch(() => {});
+  });
+}
+
 // ── Path Suggestions ──
 async function querySuggestions() {
   const inp = document.getElementById('workdirInput');
@@ -238,4 +347,6 @@ document.addEventListener('click', e => {
 
 // ── Init ──
 renderTools();
+initInstallAppButton();
+registerServiceWorker();
 loadSessions(false); // first load

@@ -2,10 +2,13 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="mobile-web-app-capable" content="yes">
 <title>SangCode — Terminal Dashboard</title>
-<link rel="stylesheet" href="__BASE__/static/css/base.css?v=3">
-<link rel="stylesheet" href="__BASE__/static/css/dashboard.css?v=3">
+<link rel="manifest" href="__BASE__/manifest.webmanifest">
+<link rel="stylesheet" href="__BASE__/static/css/base.css?v=4">
+<link rel="stylesheet" href="__BASE__/static/css/dashboard.css?v=4">
 </head>
 <body>
 <div class="dashboard" id="app">
@@ -22,7 +25,17 @@
         <div class="subtitle">Terminal Dashboard</div>
       </div>
     </div>
-    <div class="stats" id="stats">Loading...</div>
+    <div class="header-actions">
+      <button class="install-app-btn" id="installAppBtn" type="button" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <path d="M5 21h14"/>
+        </svg>
+        <span>Cài app</span>
+      </button>
+      <div class="stats" id="stats">Loading...</div>
+    </div>
   </div>
 
   <!-- Launch Section -->
@@ -62,6 +75,6 @@
 <div class="toast" id="toast"></div>
 
 <script>window.BASE_PATH='__BASE__';</script>
-<script src="__BASE__/static/js/dashboard.js?v=3"></script>
+<script src="__BASE__/static/js/dashboard.js?v=4"></script>
 </body>
 </html>

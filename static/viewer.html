@@ -2,10 +2,13 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#111827">
+<meta name="mobile-web-app-capable" content="yes">
 <title>SangCode — Terminal</title>
-<link rel="stylesheet" href="__BASE__/static/css/base.css">
-<link rel="stylesheet" href="__BASE__/static/css/viewer.css">
+<link rel="manifest" href="__BASE__/manifest.webmanifest">
+<link rel="stylesheet" href="__BASE__/static/css/base.css?v=5">
+<link rel="stylesheet" href="__BASE__/static/css/viewer.css?v=6">
 </head>
 <body>
 <div class="viewer">
@@ -32,6 +35,15 @@
         <button class="split-btn" id="splitBtn" title="Split screen" onclick="openSplitPicker()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
           <span class="split-label">Split</span>
+        </button>
+        <button class="wake-lock-btn" id="wakeLockBtn" type="button" title="Giữ màn hình luôn bật">
+          <svg class="wake-lock-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2h8"/>
+            <path d="M9 22h6"/>
+            <rect x="6" y="4" width="12" height="16" rx="2"/>
+            <path d="M10 8h4"/>
+          </svg>
+          <span class="wake-lock-label">Luôn bật</span>
         </button>
         <button class="kill-btn" id="killBtn" title="Kill session">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -62,14 +74,6 @@
     <div class="font-controls">
       <button class="font-btn" id="fontInc" title="Increase">A+</button>
       <button class="font-btn" id="fontDec" title="Decrease">A−</button>
-    </div>
-    <!-- Scroll sidebar: right edge, full height, always visible on touch devices -->
-    <div class="scroll-sidebar" id="scrollSidebar">
-      <div class="scroll-rail-up"    id="scrollRailUp">▲</div>
-      <div class="scroll-rail-track" id="scrollRailTrack">
-        <div class="scroll-rail-thumb" id="scrollRailThumb"></div>
-      </div>
-      <div class="scroll-rail-down"  id="scrollRailDown">▼</div>
     </div>
   </div>
 
@@ -121,7 +125,6 @@
         <span class="auto-dot" id="autoDot"></span>
       </button>
 
-      <button class="btn-enter" onclick="sk('Enter')">Enter ↵</button>
       <button class="btn-nav" onclick="sk('Up')">↑</button>
       <button class="btn-nav" onclick="sk('Down')">↓</button>
 
@@ -138,6 +141,15 @@
       <!-- Toggle prompt -->
       <button class="btn-icon" id="promptToggleBtn" onclick="togglePrompt()" title="Send text to terminal">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8M8 14h5"/></svg>
+      </button>
+
+      <!-- Scroll wheel: drag up/down to scroll terminal -->
+      <button class="scroll-wheel-btn btn-icon" id="scrollWheelBtn" title="Kéo lên/xuống để cuộn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="7 8 12 3 17 8"/>
+          <line x1="7" y1="12" x2="17" y2="12"/>
+          <polyline points="7 16 12 21 17 16"/>
+        </svg>
       </button>
     </div>
 
@@ -163,8 +175,47 @@ let autoApprove   = false;
 let keysVisible   = false;
 let promptVisible = false;
 
+// Android standalone PWAs can report a layout viewport taller than the visible
+// app window. Pin the viewer to visualViewport so the bottom toolbar stays in view.
+(function setupInstalledAppViewport() {
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.navigator.standalone === true;
+
+  document.body.classList.toggle('android-pwa', isAndroid && isStandalone);
+  if (!isAndroid || !isStandalone) return;
+
+  const root = document.documentElement;
+  let frame = null;
+
+  function syncViewportHeight() {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      const vv = window.visualViewport;
+      const height = Math.max(320, Math.floor((vv && vv.height) || window.innerHeight));
+      root.style.setProperty('--viewer-height', `${height}px`);
+      applyFontScale();
+    });
+  }
+
+  syncViewportHeight();
+  setTimeout(syncViewportHeight, 80);
+  setTimeout(syncViewportHeight, 350);
+
+  window.addEventListener('resize', syncViewportHeight, {passive: true});
+  window.addEventListener('orientationchange', () => setTimeout(syncViewportHeight, 250), {passive: true});
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewportHeight, {passive: true});
+    window.visualViewport.addEventListener('scroll', syncViewportHeight, {passive: true});
+  }
+})();
+
 // Font scale stored in localStorage
 const FONT_SCALE_KEY = 'sangcode_font_scale';
+const WAKE_LOCK_KEY  = 'sangcode_wake_lock_enabled';
 
 // Mobile target cols: 70 gives ~10px visual font size on 393px screen (readable)
 // User can adjust with A+/A- buttons; setting is saved in localStorage
@@ -192,6 +243,16 @@ function toast(msg, dur) {
   el._t = setTimeout(() => el.classList.remove('show'), dur || 1800);
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[ch]);
+}
+
 // ── Kind config ──
 const KIND_META = {
   claude: { label: 'Claude Code', color: '#e8640e' },
@@ -212,13 +273,15 @@ async function init() {
     const session = (data.sessions || []).find(s => s.name === NAME);
     if (session) {
       const meta = KIND_META[session.kind] || { label: session.kind, color: '#6366f1' };
+      const displayTitle = (session.title || '').trim() || NAME;
       const badge = document.getElementById('kindBadge');
       badge.textContent = meta.label;
       badge.style.background   = meta.color + '22';
       badge.style.color        = meta.color;
       badge.style.borderColor  = meta.color + '44';
+      document.getElementById('sessionTitle').textContent = displayTitle;
       document.getElementById('topAccent').style.background = meta.color;
-      document.title = `${meta.label} — SangCode`;
+      document.title = `${displayTitle} — SangCode`;
 
       autoApprove = !!session.auto_approve;
       syncAutoDot();
@@ -248,6 +311,84 @@ function syncAutoDot() {
   const dot = document.getElementById('autoDot');
   dot.className = 'auto-dot' + (autoApprove ? ' on' : '');
 }
+
+// ── Screen wake lock ──
+let wakeLockEnabled = localStorage.getItem(WAKE_LOCK_KEY) === '1';
+let wakeLockSentinel = null;
+
+function isWakeLockSupported() {
+  return !!(navigator.wakeLock && navigator.wakeLock.request);
+}
+
+function syncWakeLockButton() {
+  const btn = document.getElementById('wakeLockBtn');
+  if (!btn) return;
+  const supported = isWakeLockSupported();
+  btn.classList.toggle('active', !!wakeLockSentinel);
+  btn.classList.toggle('unsupported', !supported);
+  btn.setAttribute('aria-disabled', supported ? 'false' : 'true');
+  btn.setAttribute('aria-pressed', wakeLockSentinel ? 'true' : 'false');
+  btn.title = supported
+    ? (wakeLockSentinel ? 'Tắt giữ màn hình luôn bật' : 'Giữ màn hình luôn bật')
+    : 'Trình duyệt không hỗ trợ giữ màn hình luôn bật';
+}
+
+async function requestWakeLock(showToast) {
+  if (!wakeLockEnabled || wakeLockSentinel || !isWakeLockSupported() || document.visibilityState !== 'visible') {
+    syncWakeLockButton();
+    return;
+  }
+
+  try {
+    wakeLockSentinel = await navigator.wakeLock.request('screen');
+    wakeLockSentinel.addEventListener('release', () => {
+      wakeLockSentinel = null;
+      syncWakeLockButton();
+    });
+    syncWakeLockButton();
+    if (showToast) toast('Màn hình luôn bật: ON');
+  } catch (_) {
+    wakeLockEnabled = false;
+    localStorage.setItem(WAKE_LOCK_KEY, '0');
+    wakeLockSentinel = null;
+    syncWakeLockButton();
+    if (showToast) toast('Không bật được chế độ luôn bật');
+  }
+}
+
+async function releaseWakeLock(showToast) {
+  wakeLockEnabled = false;
+  localStorage.setItem(WAKE_LOCK_KEY, '0');
+  const sentinel = wakeLockSentinel;
+  wakeLockSentinel = null;
+  syncWakeLockButton();
+  if (sentinel) {
+    try { await sentinel.release(); } catch (_) {}
+  }
+  if (showToast) toast('Màn hình luôn bật: OFF');
+}
+
+async function toggleWakeLock() {
+  if (!isWakeLockSupported()) {
+    toast('Trình duyệt không hỗ trợ chế độ luôn bật');
+    syncWakeLockButton();
+    return;
+  }
+  if (wakeLockEnabled) {
+    await releaseWakeLock(true);
+  } else {
+    wakeLockEnabled = true;
+    localStorage.setItem(WAKE_LOCK_KEY, '1');
+    await requestWakeLock(true);
+  }
+}
+
+document.getElementById('wakeLockBtn').addEventListener('click', toggleWakeLock);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') requestWakeLock(false);
+});
+syncWakeLockButton();
+requestWakeLock(false);
 
 
 // ── Toggle keys row ──
@@ -318,10 +459,8 @@ approveBtn.addEventListener('touchcancel',_cancelPress);
 // Click = approve once (but NOT if long-press just fired)
 approveBtn.addEventListener('click', async () => {
   if (_longPressed) { _longPressed = false; return; }
-  try {
-    await fetch(`${B}/api/sessions/${encodeURIComponent(NAME)}/approve`, {method: 'POST'});
-    toast('Approved ✓');
-  } catch (_) { toast('Approve failed'); }
+  await sk('Enter');
+  toast('Approved ✓');
 });
 
 // ── Copy: open modal with terminal text, let user select any range natively ──
@@ -435,13 +574,10 @@ document.getElementById('fontDec').addEventListener('click', () => {
   toast(`Font scale: ${Math.round(fontScale * 100)}%`);
 });
 
-// ── Scroll rail ──
-(function setupScrollRail() {
-  const upBtn   = document.getElementById('scrollRailUp');
-  const downBtn = document.getElementById('scrollRailDown');
-  const track   = document.getElementById('scrollRailTrack');
-  const thumb   = document.getElementById('scrollRailThumb');
-  if (!upBtn) return;
+// ── Scroll wheel button: drag up/down to scroll terminal ──
+(function setupScrollWheelBtn() {
+  const btn = document.getElementById('scrollWheelBtn');
+  if (!btn) return;
 
   function doScroll(dir, lines) {
     if (!NAME) return;
@@ -452,43 +588,37 @@ document.getElementById('fontDec').addEventListener('click', () => {
     }).catch(() => {});
   }
 
-  // ▲ / ▼ tap + hold to repeat
-  function holdScroll(dir) {
-    let timer;
-    return {
-      start() { doScroll(dir, 3); timer = setInterval(() => doScroll(dir, 3), 160); },
-      stop()  { clearInterval(timer); }
-    };
-  }
-  const upH = holdScroll('up'), downH = holdScroll('down');
-  ['touchstart','mousedown'].forEach(ev => {
-    upBtn.addEventListener(ev,   upH.start,   {passive: true});
-    downBtn.addEventListener(ev, downH.start, {passive: true});
-  });
-  ['touchend','touchcancel','mouseup','mouseleave'].forEach(ev => {
-    upBtn.addEventListener(ev,   upH.stop,   {passive: true});
-    downBtn.addEventListener(ev, downH.stop, {passive: true});
-  });
+  let lastY = null;
+  let hasMoved = false;
 
-  // Track drag
-  let dragStartY = null;
-  track.addEventListener('touchstart', e => {
-    dragStartY = e.touches[0].clientY;
-    thumb.style.transition = 'none';
+  btn.addEventListener('touchstart', e => {
+    lastY = e.touches[0].clientY;
+    hasMoved = false;
   }, {passive: true});
-  track.addEventListener('touchmove', e => {
-    if (dragStartY === null) return;
-    const dy = e.touches[0].clientY - dragStartY;
-    if (Math.abs(dy) < 4) return;
-    dragStartY = e.touches[0].clientY;
-    const trackH = track.clientHeight - thumb.offsetHeight;
-    const curTop = parseFloat(thumb.style.top || '0');
-    thumb.style.top = Math.max(0, Math.min(trackH, curTop + dy)) + 'px';
+
+  btn.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (lastY === null) return;
+    const dy = e.touches[0].clientY - lastY;
+    if (Math.abs(dy) < 3) return;
+    hasMoved = true;
+    lastY = e.touches[0].clientY;
     const lines = Math.max(1, Math.round(Math.abs(dy) / 5));
     doScroll(dy < 0 ? 'up' : 'down', lines);
+  }, {passive: false});
+
+  btn.addEventListener('touchend', e => {
+    // Tap (no drag): top half → scroll up, bottom half → scroll down
+    if (!hasMoved) {
+      const rect = btn.getBoundingClientRect();
+      const tapY = e.changedTouches[0].clientY - rect.top;
+      doScroll(tapY < rect.height / 2 ? 'up' : 'down', 3);
+    }
+    lastY = null;
+    hasMoved = false;
   }, {passive: true});
-  track.addEventListener('touchend',    () => { dragStartY = null; }, {passive: true});
-  track.addEventListener('touchcancel', () => { dragStartY = null; }, {passive: true});
+
+  btn.addEventListener('touchcancel', () => { lastY = null; hasMoved = false; }, {passive: true});
 })();
 
 // ── Split screen ──
@@ -507,10 +637,10 @@ async function openSplitPicker() {
       listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0;">No other running sessions.<br>Launch one from the dashboard first.</div>';
     } else {
       listEl.innerHTML = others.map(s => {
-        const label = {claude:'Claude Code',codex:'Codex',bash:'Terminal'}[s.kind] || s.kind;
-        return `<button class="split-pick-btn" onclick="openSplit('${s.name}','${s.token}','${label}')">
-          <span style="font-weight:600">${label}</span>
-          <span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${s.name}</span>
+        const label = (s.title || '').trim() || ({claude:'Claude Code',codex:'Codex',bash:'Terminal'}[s.kind] || s.kind);
+        return `<button class="split-pick-btn" data-split-name="${escapeHtml(s.name)}" data-split-token="${escapeHtml(s.token)}" data-split-label="${escapeHtml(label)}">
+          <span style="font-weight:600">${escapeHtml(label)}</span>
+          <span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${escapeHtml(s.name)}</span>
         </button>`;
       }).join('');
     }
@@ -543,6 +673,11 @@ function closeSplit() {
 // Close modal on backdrop click
 document.getElementById('splitModal').addEventListener('click', function(e) {
   if (e.target === this) closeSplitModal();
+});
+document.getElementById('splitSessionList').addEventListener('click', function(e) {
+  const btn = e.target.closest('.split-pick-btn');
+  if (!btn) return;
+  openSplit(btn.dataset.splitName, btn.dataset.splitToken, btn.dataset.splitLabel);
 });
 document.getElementById('copyModal').addEventListener('click', function(e) {
   if (e.target === this) closeCopyModal();

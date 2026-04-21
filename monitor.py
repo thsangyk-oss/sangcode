@@ -20,9 +20,6 @@ def approve(session_name: str):
     content = tmux_manager.capture(session_name, 30)
     action = classify(content)
     if not action: return False
-    if action == 'y':   tmux_manager.send_key(session_name, 'y')
-    elif action == '1': tmux_manager.send_key(session_name, '1')
-    time.sleep(0.2)
     tmux_manager.send_key(session_name, 'Enter')
     return True
 

@@ -3,6 +3,8 @@
   max-width: 960px;
   margin: 0 auto;
   padding: 32px 20px 80px;
+  /* Account for Android/iOS status bar in PWA standalone mode */
+  padding-top: max(32px, calc(env(safe-area-inset-top, 0px) + 16px));
 }
 
 /* Header */
@@ -14,6 +16,13 @@
   animation: fadeIn 0.4s ease;
 }
 .header-left { display: flex; align-items: center; gap: 14px; }
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
 .header-icon {
   width: 44px; height: 44px;
   border-radius: var(--radius-md);
@@ -25,6 +34,26 @@
 .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
 .header .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 .stats { font-size: 12px; color: var(--text-secondary); }
+.install-app-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: rgba(14, 165, 233, 0.14);
+  border: 1px solid rgba(14, 165, 233, 0.42);
+  border-radius: var(--radius-sm);
+  color: #67e8f9;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 0 18px rgba(14, 165, 233, 0.12);
+}
+.install-app-btn[hidden] { display: none; }
+.install-app-btn:hover {
+  background: rgba(14, 165, 233, 0.22);
+  border-color: rgba(103, 232, 249, 0.75);
+  color: #cffafe;
+}
 
 /* Launch Section */
 .launch-section {
@@ -204,7 +233,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 10px;
+}
+.session-heading {
+  min-width: 0;
+  flex: 1;
 }
 .session-name {
   font-size: 14px;
@@ -213,6 +247,43 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+.session-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-subtitle {
+  margin-top: 2px;
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+.icon-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.12);
 }
 .session-meta {
   display: flex;
@@ -224,7 +295,17 @@
 }
 .session-meta span { display: flex; align-items: center; gap: 4px; }
 .session-meta .label { color: var(--text-muted); }
-.session-meta .value { color: var(--text-secondary); font-family: 'Fira Code', monospace; }
+.session-meta .value {
+  color: var(--text-secondary);
+  font-family: 'Fira Code', monospace;
+  min-width: 0;
+}
+.session-meta .value.path {
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .session-actions {
   display: flex;
   gap: 8px;
@@ -241,11 +322,15 @@
 
 @media (max-width: 600px) {
   .dashboard { padding: 16px 12px 60px; }
+  .header { align-items: flex-start; gap: 12px; }
+  .header-actions { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .install-app-btn { padding: 6px 9px; font-size: 11px; }
   .tool-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .tool-card { padding: 14px 10px; }
   .tool-icon { font-size: 22px; }
   .tool-label { font-size: 11px; }
   .workdir-row { flex-direction: column; }
   .session-actions { justify-content: flex-end; }
+  .session-meta .value.path { max-width: 230px; }
   .header h1 { font-size: 18px; }
 }

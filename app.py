@@ -1,7 +1,7 @@
 from aiohttp import web, WSMsgType, ClientSession
 from aiohttp.client_exceptions import ClientConnectionError, ClientConnectionResetError
 from pathlib import Path
-import time, secrets, asyncio, os, re
+import time, secrets, asyncio, os, re, shlex, json
 import config, tmux_manager, registry, ttyd_manager, monitor
 
 STATIC_DIR = Path(__file__).parent / 'static'
@@ -24,10 +24,70 @@ def _serve_html(filename):
     return web.Response(text=content, content_type='text/html')
 
 
+def _serve_manifest():
+    base = config.BASE_PATH or ''
+    start_url = f'{base}/' if base else '/'
+    manifest = {
+        'name': 'SangCode Terminal Dashboard',
+        'short_name': 'SangCode',
+        'description': 'Web terminal dashboard for Claude Code, Codex, OpenCode and shell sessions.',
+        'start_url': start_url,
+        'scope': start_url,
+        'display': 'standalone',
+        'background_color': '#0a0e1a',
+        'theme_color': '#111827',
+        'icons': [
+            {
+                'src': f'{base}/static/img/app_icon_192.png',
+                'sizes': '192x192',
+                'type': 'image/png',
+                'purpose': 'any maskable',
+            },
+            {
+                'src': f'{base}/static/img/app_icon_512.png',
+                'sizes': '512x512',
+                'type': 'image/png',
+                'purpose': 'any maskable',
+            },
+        ],
+    }
+    return web.Response(
+        text=json.dumps(manifest),
+        content_type='application/manifest+json',
+    )
+
+
+def _serve_sw():
+    scope = f'{config.BASE_PATH}/' if config.BASE_PATH else '/'
+    return web.Response(
+        text=(STATIC_DIR / 'sw.js').read_text(),
+        content_type='application/javascript',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Service-Worker-Allowed': scope,
+        },
+    )
+
+
+def _launch_command(kind: str, workdir: str) -> str:
+    kind = str(kind or 'bash')
+    workdir_q = shlex.quote(str(workdir or '/root'))
+    launch_map = {
+        'claude': 'claude --permission-mode default',
+        'codex': 'codex',
+        'opencode': 'opencode',
+        'bash': 'bash',
+    }
+    launch = launch_map.get(kind, 'bash')
+    unset_proxy = 'unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; '
+    return f'{unset_proxy}cd {workdir_q} && exec {launch}'
+
+
 def _session_entry(name: str, existing: dict | None = None):
     existing = existing or {}
     token = existing.get('token') or secrets.token_hex(16)
     kind = existing.get('kind') or tmux_manager.infer_kind(name)
+    title = existing.get('title') or ''
     created_at = existing.get('created_at') or int(time.time())
     workdir = existing.get('workdir') or '/root'
     cmd = existing.get('cmd') or f'attach:{name}'
@@ -39,6 +99,7 @@ def _session_entry(name: str, existing: dict | None = None):
     return {
         'name': name,
         'kind': kind,
+        'title': title,
         'cmd': cmd,
         'workdir': workdir,
         'created_at': created_at,
@@ -53,7 +114,7 @@ def _session_entry(name: str, existing: dict | None = None):
 @web.middleware
 async def auth_middleware(request, handler):
     path = _strip_base(request.path)
-    if path == '/health' or path.startswith('/static/'):
+    if path in ('/health', '/manifest.webmanifest', '/sw.js') or path.startswith('/static/'):
         return await handler(request)
     if path.startswith('/tty/'):
         return await handler(request)
@@ -154,6 +215,10 @@ async def handle_get(request):
         return _serve_html('viewer.html')
     if path == '/health':
         return _json({'ok': True})
+    if path == '/manifest.webmanifest':
+        return _serve_manifest()
+    if path == '/sw.js':
+        return _serve_sw()
     if path == '/api/sessions':
         data = registry.load()
         for s in data.get('sessions', []):
@@ -185,15 +250,12 @@ async def handle_post(request):
         body = {}
 
     if path == '/api/sessions':
-        kind = body.get('kind', 'bash')
-        workdir = body.get('workdir', '/root')
-        cmd_map = {
-            'claude': f'cd {workdir} && claude',
-            'codex': f'cd {workdir} && codex',
-            'opencode': f'cd {workdir} && opencode',
-            'bash': f'cd {workdir} && bash',
-        }
-        cmd = cmd_map.get(kind, f'cd {workdir} && bash')
+        kind = str(body.get('kind') or 'bash')
+        if kind not in {'claude', 'codex', 'opencode', 'bash'}:
+            kind = 'bash'
+        workdir = str(body.get('workdir') or '/root')
+        title = str(body.get('title') or '').strip()[:80]
+        cmd = _launch_command(kind, workdir)
         name = tmux_manager.generate_name(kind)
         ok, err = tmux_manager.create(name, cmd)
         if not ok:
@@ -209,6 +271,7 @@ async def handle_post(request):
         entry = {
             'name': name,
             'kind': kind,
+            'title': title,
             'cmd': cmd,
             'workdir': workdir,
             'created_at': int(time.time()),
@@ -219,6 +282,21 @@ async def handle_post(request):
         }
         registry.add_session(entry)
         return _json(entry)
+
+    if path.startswith('/api/sessions/') and path.endswith('/title'):
+        name = path.split('/')[3]
+        title = str(body.get('title') or '').strip()[:80]
+        data = registry.load()
+        found = False
+        for s in data.get('sessions', []):
+            if s['name'] == name:
+                s['title'] = title
+                found = True
+                break
+        if not found:
+            return _json({'error': 'session not found'}, status=404)
+        registry.save(data)
+        return _json({'ok': True, 'title': title})
 
     if path.startswith('/api/sessions/') and path.endswith('/keys'):
         name = path.split('/')[3]
