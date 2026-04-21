@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyCode — Terminal Dashboard</title>
+<link rel="stylesheet" href="__BASE__/static/css/base.css?v=3">
+<link rel="stylesheet" href="__BASE__/static/css/dashboard.css?v=3">
+</head>
+<body>
+<div class="dashboard" id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+          <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+        </svg>
+      </div>
+      <div>
+        <h1>MyCode</h1>
+        <div class="subtitle">Terminal Dashboard</div>
+      </div>
+    </div>
+    <div class="stats" id="stats">Loading...</div>
+  </div>
+
+  <!-- Launch Section -->
+  <div class="launch-section">
+    <div class="launch-title">🚀 Launch New Session</div>
+    <div class="tool-grid" id="toolGrid"></div>
+    <div class="workdir-row">
+      <div class="workdir-wrap">
+        <input type="text" class="workdir-input" id="workdirInput"
+               placeholder="/root/project-path" value="/root" autocomplete="off">
+        <div class="suggestions" id="suggestions" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sessions -->
+  <div class="sessions-header">
+    <div class="sessions-title">Active Sessions</div>
+    <div class="refresh-ctrl">
+      <span class="refresh-label">Refresh:</span>
+      <select class="refresh-select" id="refreshSelect">
+        <option value="0">Manual</option>
+        <option value="10000">10s</option>
+        <option value="30000" selected>30s</option>
+        <option value="60000">60s</option>
+        <option value="120000">2m</option>
+      </select>
+      <button class="refresh-now-btn" id="refreshNowBtn" title="Refresh now">↻</button>
+      <div class="session-count" id="sessionCount"></div>
+    </div>
+  </div>
+  <div class="session-list" id="sessionList">
+    <div class="empty-state"><div class="icon">📡</div>No active sessions</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>window.BASE_PATH='__BASE__';</script>
+<script src="__BASE__/static/js/dashboard.js?v=3"></script>
+</body>
+</html>

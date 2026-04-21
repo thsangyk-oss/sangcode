@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>MyCode — Terminal</title>
+<link rel="stylesheet" href="__BASE__/static/css/base.css">
+<link rel="stylesheet" href="__BASE__/static/css/viewer.css">
+</head>
+<body>
+<div class="viewer">
+
+  <!-- ── Top Bar ── -->
+  <header class="top-bar">
+    <div class="top-accent" id="topAccent"></div>
+    <div class="top-inner">
+      <div class="top-left">
+        <a href="__BASE__/" class="back-btn" title="Dashboard">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </a>
+        <div class="session-identity">
+          <div class="session-kind-badge" id="kindBadge">…</div>
+          <div class="session-name" id="sessionTitle">Loading…</div>
+        </div>
+      </div>
+      <div class="top-right">
+        <div class="status-pill">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-label" id="statusText">Connecting</span>
+        </div>
+        <!-- Split screen button (desktop only) -->
+        <button class="split-btn" id="splitBtn" title="Split screen" onclick="openSplitPicker()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+          <span class="split-label">Split</span>
+        </button>
+        <button class="kill-btn" id="killBtn" title="Kill session">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <span class="kill-label">Kill</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Terminal area (supports split screen) ── -->
+  <div class="term-wrap" id="termWrap">
+    <!-- Primary terminal -->
+    <div class="term-panel" id="termPanel1">
+      <iframe id="termFrame" class="term-frame" src="about:blank" allowfullscreen></iframe>
+      <!-- Touch overlay: catches swipe-scroll on mobile without blocking click -->
+      <div id="touchOverlay" class="touch-overlay"></div>
+    </div>
+    <!-- Secondary terminal (split, hidden by default) -->
+    <div class="term-panel" id="termPanel2" hidden>
+      <div class="split-header">
+        <span class="split-title" id="split2Title">—</span>
+        <button class="split-close" onclick="closeSplit()" title="Close split">✕</button>
+      </div>
+      <iframe id="termFrame2" class="term-frame" src="about:blank" allowfullscreen></iframe>
+    </div>
+
+    <!-- A+ / A- floating font size -->
+    <div class="font-controls">
+      <button class="font-btn" id="fontInc" title="Increase">A+</button>
+      <button class="font-btn" id="fontDec" title="Decrease">A−</button>
+    </div>
+    <!-- Scroll sidebar: right edge, full height, always visible on touch devices -->
+    <div class="scroll-sidebar" id="scrollSidebar">
+      <div class="scroll-rail-up"    id="scrollRailUp">▲</div>
+      <div class="scroll-rail-track" id="scrollRailTrack">
+        <div class="scroll-rail-thumb" id="scrollRailThumb"></div>
+      </div>
+      <div class="scroll-rail-down"  id="scrollRailDown">▼</div>
+    </div>
+  </div>
+
+  <!-- Split session picker modal -->
+  <div class="split-modal" id="splitModal" hidden>
+    <div class="split-modal-box">
+      <div class="split-modal-title">Open in split panel</div>
+      <div class="split-modal-list" id="splitSessionList">Loading…</div>
+      <div class="split-modal-actions">
+        <button class="btn" onclick="closeSplitModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copy modal: pick & copy arbitrary text range -->
+  <div class="split-modal" id="copyModal" hidden>
+    <div class="split-modal-box copy-modal-box">
+      <div class="split-modal-title">Select text to copy</div>
+      <div class="copy-modal-hint">Long-press (mobile) or drag (desktop) to select, then use the system copy menu. Or tap "Copy all".</div>
+      <textarea class="copy-modal-text" id="copyModalText" readonly></textarea>
+      <div class="split-modal-actions copy-modal-actions">
+        <button class="btn" onclick="closeCopyModal()">Close</button>
+        <button class="btn-send" onclick="copyAllFromModal()">Copy all</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bottom Controls ── -->
+  <div class="controls" id="controls">
+
+    <!-- Key row (toggled by ▲ button, hidden by default) -->
+    <div class="keys-row" id="keysRow" hidden>
+      <button class="key-btn" onclick="sk('Escape')">Esc</button>
+      <button class="key-btn" onclick="sk('Tab')">Tab</button>
+      <button class="key-btn" onclick="sk('Left')">←</button>
+      <button class="key-btn" onclick="sk('Right')">→</button>
+      <button class="key-btn" onclick="sk('Space')">Spc</button>
+      <button class="key-btn danger" onclick="sk('C-c')">^C</button>
+      <button class="key-btn" onclick="sk('C-d')">^D</button>
+      <button class="key-btn" onclick="sk('C-l')">^L</button>
+      <button class="key-btn" onclick="sk('C-z')">^Z</button>
+    </div>
+
+    <!-- Main action row: Approve | Enter | ↑ | ↓ | ▲ keys | ⌨ prompt -->
+    <div class="action-row">
+      <button class="btn-approve" id="approveBtn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Approve
+        <span class="auto-dot" id="autoDot"></span>
+      </button>
+
+      <button class="btn-enter" onclick="sk('Enter')">Enter ↵</button>
+      <button class="btn-nav" onclick="sk('Up')">↑</button>
+      <button class="btn-nav" onclick="sk('Down')">↓</button>
+
+      <!-- Toggle keys row -->
+      <button class="btn-icon" id="keysToggleBtn" onclick="toggleKeys()" title="Show/hide keys">
+        <svg id="keysToggleIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+
+      <!-- Copy visible terminal content -->
+      <button class="btn-icon" id="copyBtn" onclick="copyVisible()" title="Copy terminal text">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+
+      <!-- Toggle prompt -->
+      <button class="btn-icon" id="promptToggleBtn" onclick="togglePrompt()" title="Send text to terminal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8M8 14h5"/></svg>
+      </button>
+    </div>
+
+    <!-- Prompt row (hidden by default) -->
+    <div class="prompt-row" id="promptRow" hidden>
+      <input type="text" class="prompt-input" id="promptInput"
+             placeholder="Type to send to terminal…"
+             onkeydown="if(event.key==='Enter')sendPrompt();if(event.key==='Escape')togglePrompt()">
+      <button class="btn-send" onclick="sendPrompt()">Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+window.BASE_PATH = '__BASE__';
+const B = window.BASE_PATH || '';
+const params = new URLSearchParams(location.search);
+const NAME  = params.get('s');
+const TOKEN = params.get('t');
+let autoApprove   = false;
+let keysVisible   = false;
+let promptVisible = false;
+
+// Font scale stored in localStorage
+const FONT_SCALE_KEY = 'mycode_font_scale';
+
+// Mobile target cols: 70 gives ~10px visual font size on 393px screen (readable)
+// User can adjust with A+/A- buttons; setting is saved in localStorage
+const MOBILE_TARGET_COLS = 70;
+const CHAR_WIDTH_AT_14   = 8.4;
+const MOBILE_MAX_WIDTH   = 600;
+
+function getDefaultMobileScale() {
+  if (window.innerWidth > MOBILE_MAX_WIDTH) return 1;
+  return +(window.innerWidth / (MOBILE_TARGET_COLS * CHAR_WIDTH_AT_14)).toFixed(2);
+}
+
+// Use saved scale, or compute mobile default
+const savedScale = localStorage.getItem(FONT_SCALE_KEY);
+let fontScale = savedScale ? parseFloat(savedScale) : getDefaultMobileScale();
+
+// applyFontScale is defined below — called after iframe loads, not here
+
+// ── Toast ──
+function toast(msg, dur) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), dur || 1800);
+}
+
+// ── Kind config ──
+const KIND_META = {
+  claude: { label: 'Claude Code', color: '#e8640e' },
+  codex:  { label: 'Codex',       color: '#6366f1' },
+  bash:   { label: 'Terminal',    color: '#22c55e' },
+};
+
+// ── Init ──
+async function init() {
+  if (!NAME) {
+    document.getElementById('sessionTitle').textContent = 'No session';
+    return;
+  }
+  document.getElementById('sessionTitle').textContent = NAME;
+  try {
+    const r = await fetch(`${B}/api/sessions`);
+    const data = await r.json();
+    const session = (data.sessions || []).find(s => s.name === NAME);
+    if (session) {
+      const meta = KIND_META[session.kind] || { label: session.kind, color: '#6366f1' };
+      const badge = document.getElementById('kindBadge');
+      badge.textContent = meta.label;
+      badge.style.background   = meta.color + '22';
+      badge.style.color        = meta.color;
+      badge.style.borderColor  = meta.color + '44';
+      document.getElementById('topAccent').style.background = meta.color;
+      document.title = `${meta.label} — MyCode`;
+
+      autoApprove = !!session.auto_approve;
+      syncAutoDot();
+
+      if (session.ttyd_port) {
+        const frame = document.getElementById('termFrame');
+        frame.onload = () => applyFontScale();
+        frame.src = `${B}/tty/${NAME}/`;
+        setStatus('running', 'Connected');
+      } else {
+        setStatus('error', 'No TTY');
+      }
+    } else {
+      setStatus('error', 'Not found');
+    }
+  } catch (e) {
+    setStatus('error', 'Error');
+  }
+}
+
+function setStatus(cls, text) {
+  document.getElementById('statusDot').className  = 'status-dot ' + cls;
+  document.getElementById('statusText').textContent = text;
+}
+
+function syncAutoDot() {
+  const dot = document.getElementById('autoDot');
+  dot.className = 'auto-dot' + (autoApprove ? ' on' : '');
+}
+
+
+// ── Toggle keys row ──
+function toggleKeys() {
+  keysVisible = !keysVisible;
+  document.getElementById('keysRow').hidden = !keysVisible;
+  const btn = document.getElementById('keysToggleBtn');
+  btn.classList.toggle('active', keysVisible);
+  // Flip arrow direction
+  document.getElementById('keysToggleIcon').setAttribute('points',
+    keysVisible ? '6 9 12 15 18 9' : '18 15 12 9 6 15');
+}
+
+// ── Toggle prompt ──
+function togglePrompt() {
+  promptVisible = !promptVisible;
+  document.getElementById('promptRow').hidden = !promptVisible;
+  document.getElementById('promptToggleBtn').classList.toggle('active', promptVisible);
+  if (promptVisible) setTimeout(() => document.getElementById('promptInput').focus(), 50);
+}
+
+// ── Send key ──
+async function sk(key) {
+  if (!NAME) return;
+  try {
+    await fetch(`${B}/api/sessions/${encodeURIComponent(NAME)}/keys`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({key})
+    });
+  } catch (_) {}
+}
+
+// ── Approve: tap = approve once, long-press (600ms) = toggle auto ──
+let _longPressed = false;
+let _pressTimer  = null;
+
+function _startPress(e) {
+  _longPressed = false;
+  _pressTimer = setTimeout(async () => {
+    _longPressed = true;
+    autoApprove = !autoApprove;
+    try {
+      await fetch(`${B}/api/sessions/${encodeURIComponent(NAME)}/auto-approve`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled: autoApprove})
+      });
+      syncAutoDot();
+      toast(`Auto-approve: ${autoApprove ? 'ON 🟢' : 'OFF'}`);
+    } catch (_) {}
+  }, 600);
+}
+
+function _cancelPress() {
+  clearTimeout(_pressTimer);
+  _pressTimer = null;
+}
+
+const approveBtn = document.getElementById('approveBtn');
+approveBtn.addEventListener('mousedown',  _startPress);
+approveBtn.addEventListener('touchstart', _startPress, {passive: true});
+approveBtn.addEventListener('mouseup',    _cancelPress);
+approveBtn.addEventListener('mouseleave', _cancelPress);
+approveBtn.addEventListener('touchend',   _cancelPress);
+approveBtn.addEventListener('touchcancel',_cancelPress);
+
+// Click = approve once (but NOT if long-press just fired)
+approveBtn.addEventListener('click', async () => {
+  if (_longPressed) { _longPressed = false; return; }
+  try {
+    await fetch(`${B}/api/sessions/${encodeURIComponent(NAME)}/approve`, {method: 'POST'});
+    toast('Approved ✓');
+  } catch (_) { toast('Approve failed'); }
+});
+
+// ── Copy: open modal with terminal text, let user select any range natively ──
+async function copyVisible() {
+  if (!NAME) return;
+  const modal = document.getElementById('copyModal');
+  const ta    = document.getElementById('copyModalText');
+  ta.value = 'Loading…';
+  modal.hidden = false;
+  try {
+    const r = await fetch(`${B}/api/sessions/${encodeURIComponent(NAME)}/capture?lines=500`);
+    const data = await r.json();
+    const text = (data.text || '').replace(/\s+$/, '');
+    ta.value = text || '(empty)';
+    // Scroll to bottom so newest output is visible first
+    ta.scrollTop = ta.scrollHeight;
+  } catch (_) {
+    ta.value = '(failed to load)';
+  }
+}
+
+function closeCopyModal() {
+  document.getElementById('copyModal').hidden = true;
+}
+
+async function copyAllFromModal() {
+  const ta = document.getElementById('copyModalText');
+  const text = ta.value;
+  if (!text) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      ta.removeAttribute('readonly');
+      ta.select();
+      document.execCommand('copy');
+      ta.setAttribute('readonly', '');
+    }
+    toast('Copied all ✓');
+    closeCopyModal();
+  } catch (_) { toast('Copy failed'); }
+}
+
+// ── Send prompt ──
+async function sendPrompt() {
+  const inp  = document.getElementById('promptInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  try {
+    await fetch(`${B}/api/sessions/${encodeURIComponent(NAME)}/keys`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text})
+    });
+    inp.value = '';
+    toast('Sent ✓');
+  } catch (_) { toast('Send failed'); }
+}
+
+// ── Kill ──
+document.getElementById('killBtn').onclick = async () => {
+  if (!confirm('Kill this session?')) return;
+  try {
+    await fetch(`${B}/api/sessions/${encodeURIComponent(NAME)}`, {method: 'DELETE'});
+    location.href = `${B}/`;
+  } catch (_) { toast('Kill failed'); }
+};
+
+// ── Font scale — CSS zoom correctly maps touch coords; transform:scale does NOT ──
+function applyFontScale() {
+  const frame = document.getElementById('termFrame');
+  const panel = document.getElementById('termPanel1');
+  if (!frame || !panel) return;
+
+  // Always clear transform-based scaling
+  frame.style.transform = '';
+  frame.style.transformOrigin = '';
+
+  if (fontScale === 1) {
+    frame.style.zoom   = '';
+    frame.style.flex   = '1';
+    frame.style.width  = '100%';
+    frame.style.height = '100%';
+  } else {
+    // zoom property scales touch coordinates correctly (unlike transform:scale)
+    // Set iframe larger than panel, then zoom shrinks it to fit visually
+    const w = panel.clientWidth  || window.innerWidth;
+    const h = panel.clientHeight || (window.innerHeight - 160);
+    const inv = 1 / fontScale;
+    frame.style.flex   = 'none';
+    frame.style.zoom   = fontScale;
+    frame.style.width  = Math.round(w * inv) + 'px';
+    frame.style.height = Math.round(h * inv) + 'px';
+    panel.style.overflow = 'hidden';
+  }
+}
+
+document.getElementById('fontInc').addEventListener('click', () => {
+  if (fontScale >= 2) return;
+  fontScale = Math.min(2, +(fontScale + 0.1).toFixed(1));
+  localStorage.setItem(FONT_SCALE_KEY, fontScale);
+  applyFontScale();
+  toast(`Font scale: ${Math.round(fontScale * 100)}%`);
+});
+
+document.getElementById('fontDec').addEventListener('click', () => {
+  if (fontScale <= 0.5) return;
+  fontScale = Math.max(0.5, +(fontScale - 0.1).toFixed(1));
+  localStorage.setItem(FONT_SCALE_KEY, fontScale);
+  applyFontScale();
+  toast(`Font scale: ${Math.round(fontScale * 100)}%`);
+});
+
+// ── Scroll rail ──
+(function setupScrollRail() {
+  const upBtn   = document.getElementById('scrollRailUp');
+  const downBtn = document.getElementById('scrollRailDown');
+  const track   = document.getElementById('scrollRailTrack');
+  const thumb   = document.getElementById('scrollRailThumb');
+  if (!upBtn) return;
+
+  function doScroll(dir, lines) {
+    if (!NAME) return;
+    fetch(`${B}/api/sessions/${encodeURIComponent(NAME)}/scroll`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({direction: dir, lines})
+    }).catch(() => {});
+  }
+
+  // ▲ / ▼ tap + hold to repeat
+  function holdScroll(dir) {
+    let timer;
+    return {
+      start() { doScroll(dir, 3); timer = setInterval(() => doScroll(dir, 3), 160); },
+      stop()  { clearInterval(timer); }
+    };
+  }
+  const upH = holdScroll('up'), downH = holdScroll('down');
+  ['touchstart','mousedown'].forEach(ev => {
+    upBtn.addEventListener(ev,   upH.start,   {passive: true});
+    downBtn.addEventListener(ev, downH.start, {passive: true});
+  });
+  ['touchend','touchcancel','mouseup','mouseleave'].forEach(ev => {
+    upBtn.addEventListener(ev,   upH.stop,   {passive: true});
+    downBtn.addEventListener(ev, downH.stop, {passive: true});
+  });
+
+  // Track drag
+  let dragStartY = null;
+  track.addEventListener('touchstart', e => {
+    dragStartY = e.touches[0].clientY;
+    thumb.style.transition = 'none';
+  }, {passive: true});
+  track.addEventListener('touchmove', e => {
+    if (dragStartY === null) return;
+    const dy = e.touches[0].clientY - dragStartY;
+    if (Math.abs(dy) < 4) return;
+    dragStartY = e.touches[0].clientY;
+    const trackH = track.clientHeight - thumb.offsetHeight;
+    const curTop = parseFloat(thumb.style.top || '0');
+    thumb.style.top = Math.max(0, Math.min(trackH, curTop + dy)) + 'px';
+    const lines = Math.max(1, Math.round(Math.abs(dy) / 5));
+    doScroll(dy < 0 ? 'up' : 'down', lines);
+  }, {passive: true});
+  track.addEventListener('touchend',    () => { dragStartY = null; }, {passive: true});
+  track.addEventListener('touchcancel', () => { dragStartY = null; }, {passive: true});
+})();
+
+// ── Split screen ──
+let splitOpen = false;
+
+async function openSplitPicker() {
+  const modal = document.getElementById('splitModal');
+  const listEl = document.getElementById('splitSessionList');
+  modal.hidden = false;
+  listEl.textContent = 'Loading…';
+  try {
+    const r = await fetch(`${B}/api/sessions`);
+    const data = await r.json();
+    const others = (data.sessions || []).filter(s => s.name !== NAME && s.is_running !== false);
+    if (!others.length) {
+      listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0;">No other running sessions.<br>Launch one from the dashboard first.</div>';
+    } else {
+      listEl.innerHTML = others.map(s => {
+        const label = {claude:'Claude Code',codex:'Codex',bash:'Terminal'}[s.kind] || s.kind;
+        return `<button class="split-pick-btn" onclick="openSplit('${s.name}','${s.token}','${label}')">
+          <span style="font-weight:600">${label}</span>
+          <span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${s.name}</span>
+        </button>`;
+      }).join('');
+    }
+  } catch (e) {
+    listEl.innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${e.message}</div>`;
+  }
+  modal.hidden = false;
+}
+
+function closeSplitModal() {
+  document.getElementById('splitModal').hidden = true;
+}
+
+function openSplit(name, token, label) {
+  closeSplitModal();
+  document.getElementById('termFrame2').src = `${B}/tty/${name}/`;
+  document.getElementById('split2Title').textContent = label + ' — ' + name;
+  document.getElementById('termPanel2').hidden = false;
+  document.getElementById('termWrap').classList.add('split');
+  splitOpen = true;
+}
+
+function closeSplit() {
+  document.getElementById('termPanel2').hidden = true;
+  document.getElementById('termFrame2').src = 'about:blank';
+  document.getElementById('termWrap').classList.remove('split');
+  splitOpen = false;
+}
+
+// Close modal on backdrop click
+document.getElementById('splitModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSplitModal();
+});
+document.getElementById('copyModal').addEventListener('click', function(e) {
+  if (e.target === this) closeCopyModal();
+});
+
+init();
+</script>
+</body>
+</html>

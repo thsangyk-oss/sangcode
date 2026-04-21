@@ -1,0 +1,251 @@
+/* ── Dashboard Layout ── */
+.dashboard {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  animation: fadeIn 0.4s ease;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-icon {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+.header-icon svg { width: 22px; height: 22px; }
+.header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.header .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.stats { font-size: 12px; color: var(--text-secondary); }
+
+/* Launch Section */
+.launch-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 28px;
+  backdrop-filter: blur(12px);
+  animation: slideUp 0.5s ease;
+  /* Must be positioned so its z-index beats session cards stacking context */
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+}
+.launch-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.tool-card {
+  position: relative;
+  padding: 20px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--transition);
+}
+.tool-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  opacity: 0.7;
+  z-index: 0;
+  transition: opacity var(--transition);
+}
+.tool-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-hover); }
+.tool-card:hover::before { opacity: 1; }
+.tool-card:active { transform: translateY(0) scale(0.98); }
+.tool-card-claude::before { background: var(--claude-gradient); }
+.tool-card-codex::before { background: var(--codex-gradient); }
+.tool-card-opencode::before { background: var(--opencode-gradient); }
+.tool-card-bash::before { background: var(--bash-gradient); }
+.tool-icon {
+  position: relative; z-index: 1;
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.tool-label {
+  position: relative; z-index: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+}
+
+/* Workdir input */
+.workdir-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.workdir-wrap {
+  flex: 1;
+  position: relative;
+}
+.workdir-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.workdir-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.workdir-input::placeholder { color: var(--text-muted); }
+.suggestions {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 999;
+  box-shadow: var(--shadow-lg);
+  animation: fadeIn 0.15s ease;
+}
+.suggestions button {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--border);
+}
+.suggestions button:hover { background: var(--bg-glass); }
+.suggestions button:last-child { border-bottom: none; }
+
+/* Session List */
+.sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.sessions-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+.session-count { font-size: 12px; color: var(--text-muted); }
+
+/* Refresh controls */
+.refresh-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.refresh-label { white-space: nowrap; }
+.refresh-select {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 6px;
+  outline: none;
+  cursor: pointer;
+}
+.refresh-select:focus { border-color: var(--accent); }
+.refresh-now-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.refresh-now-btn:hover { color: var(--accent); border-color: var(--accent); }
+.refresh-now-btn.spinning { animation: spin 0.6s linear; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.session-list { display: flex; flex-direction: column; gap: 10px; }
+
+.session-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  /* No backdrop-filter here — it creates a stacking context that breaks suggestions z-index */
+}
+.session-card:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.session-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.session-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.session-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.session-meta span { display: flex; align-items: center; gap: 4px; }
+.session-meta .label { color: var(--text-muted); }
+.session-meta .value { color: var(--text-secondary); font-family: 'Fira Code', monospace; }
+.session-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+@media (max-width: 600px) {
+  .dashboard { padding: 16px 12px 60px; }
+  .tool-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .tool-card { padding: 14px 10px; }
+  .tool-icon { font-size: 22px; }
+  .tool-label { font-size: 11px; }
+  .workdir-row { flex-direction: column; }
+  .session-actions { justify-content: flex-end; }
+  .header h1 { font-size: 18px; }
+}
