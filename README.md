@@ -31,9 +31,19 @@ To run SangCode, ensure you have the following installed on your system:
 
 ## Installation & Setup
 
+### Quick Install (Recommended)
+
+You can deploy SangCode instantly using the one-line automated installation script. This script will prompt you for a password, install dependencies, set up a virtual environment, and configure a background service running on port 3003.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thsangyk-oss/sangcode/main/install.sh | bash
+```
+
+### Manual Installation
+
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/sangcode.git
+   git clone https://github.com/thsangyk-oss/sangcode.git
    cd sangcode
    ```
 
@@ -52,7 +62,7 @@ To run SangCode, ensure you have the following installed on your system:
    python app.py
    ```
    
-5. Open your browser and navigate to the provided host and port (default is usually `http://localhost:8080`).
+5. Open your browser and navigate to the provided host and port (default is usually `http://localhost:8770`).
 
 ## Usage
 
