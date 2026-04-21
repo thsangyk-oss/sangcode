@@ -1,0 +1,27 @@
+[Unit]
+Description=MyCode Web Terminal Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/mycode
+Environment="SANGCODE_HOST=0.0.0.0"
+Environment="SANGCODE_PORT=8770"
+Environment="SANGCODE_BASE_PATH="
+Environment="SANGCODE_PASSWORD=thanhsang123456"
+Environment="SANGCODE_WORKSPACE=/root"
+Environment="SANGCODE_DATA=/root/mycode/data"
+Environment="SANGCODE_SESSION_PREFIX=mycode"
+Environment="SANGCODE_LEGACY_SESSION_PREFIXES=sangcode"
+ExecStartPre=/usr/bin/bash -lc 'pids=$(lsof -t -i:8770 2>/dev/null || true); if [ -n "$pids" ]; then kill $pids || true; sleep 1; fi'
+ExecStart=/usr/bin/python3 /root/mycode/app.py
+Restart=always
+RestartSec=3
+KillMode=mixed
+TimeoutStopSec=15
+StandardOutput=append:/root/mycode/logs/mycode.log
+StandardError=append:/root/mycode/logs/mycode.log
+
+[Install]
+WantedBy=multi-user.target
